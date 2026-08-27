@@ -1,0 +1,6 @@
+{
+  "name": "Rozkład ZTM Poznań",
+  "description": "Bieżący rozkład jazdy komunikacji miejskiej w Poznaniu w czasie rzeczywistym z GPS i GTFS.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
