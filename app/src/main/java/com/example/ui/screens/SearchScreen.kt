@@ -69,7 +69,7 @@ fun SearchScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = "Baza przystanków",
+                    text = "BAZA PRZYSTANKÓW",
                     color = PolishPrimary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -95,7 +95,7 @@ fun SearchScreen(
                 value = uiState.searchQuery,
                 onValueChange = { viewModel.setSearchQuery(it) },
                 placeholder = {
-                    Text("Wpisz np. Kaponiera, Teatralny, 12, Sobieskiego...", color = TextSecondary, fontSize = 14.sp)
+                    Text("Wpisz np. Kaponiera, Teatralny, ...", color = TextSecondary, fontSize = 14.sp)
                 },
                 leadingIcon = {
                     Icon(
