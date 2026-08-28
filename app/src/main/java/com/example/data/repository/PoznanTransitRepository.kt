@@ -8,6 +8,7 @@ import com.example.data.local.FavoriteStopEntity
 import com.example.data.model.AlertSeverity
 import com.example.data.model.LiveDeparture
 import com.example.data.model.StopAlert
+import com.example.data.model.StopDataSource
 import com.example.data.model.StopDetails
 import com.example.data.model.TransitStop
 import com.example.data.model.VehicleType
@@ -93,32 +94,6 @@ class PoznanTransitRepository(
         )
 
         val liveResponse = apiResult.getOrNull()
-        if (apiResult.isSuccess && liveResponse != null && liveResponse.departures.isNotEmpty()) {
-            val alerts = mutableListOf<StopAlert>()
-            alerts.addAll(liveResponse.alerts)
-            if (stop.hasPst && alerts.none { it.id == "alert_pst" }) {
-                alerts.add(
-                    StopAlert(
-                        id = "alert_pst",
-                        title = "Trasa PST w pełnym ruchu",
-                        message = "Linie 12, 14, 15, 16 kursują ze stałą częstotliwością w godzinach szczytu.",
-                        severity = AlertSeverity.INFO,
-                        affectedLines = listOf("12", "14", "15", "16")
-                    )
-                )
-            }
-
-            return@withContext StopDetails(
-                stop = stop,
-                departures = liveResponse.departures,
-                alerts = alerts,
-                lastUpdated = System.currentTimeMillis(),
-                isOnlineData = true
-            )
-        }
-
-        // 2. Fallback to timetable data when API is unreachable or returns no live departures
-        val fallbackDepartures = generateFallbackDepartures(stop)
         val alerts = mutableListOf<StopAlert>()
         alerts.addAll(liveResponse?.alerts ?: emptyList())
         if (stop.hasPst && alerts.none { it.id == "alert_pst" }) {
@@ -133,12 +108,39 @@ class PoznanTransitRepository(
             )
         }
 
+        if (apiResult.isSuccess && liveResponse != null) {
+            if (liveResponse.departures.isNotEmpty()) {
+                return@withContext StopDetails(
+                    stop = stop,
+                    departures = liveResponse.departures,
+                    alerts = alerts,
+                    lastUpdated = System.currentTimeMillis(),
+                    isOnlineData = true,
+                    dataSource = StopDataSource.LIVE_API
+                )
+            }
+
+            // API reached successfully but no currently scheduled departures.
+            return@withContext StopDetails(
+                stop = stop,
+                departures = emptyList(),
+                alerts = alerts,
+                lastUpdated = System.currentTimeMillis(),
+                isOnlineData = true,
+                dataSource = StopDataSource.ONLINE_NO_DEPARTURES
+            )
+        }
+
+        // Fallback to generated timetable data only when online APIs are unavailable.
+        val fallbackDepartures = generateFallbackDepartures(stop)
+
         StopDetails(
             stop = stop,
             departures = fallbackDepartures,
             alerts = alerts,
             lastUpdated = System.currentTimeMillis(),
-            isOnlineData = false
+            isOnlineData = false,
+            dataSource = StopDataSource.FALLBACK_GENERATED
         )
     }
 

@@ -53,6 +53,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.AlertSeverity
+import com.example.data.model.StopDataSource
 import com.example.ui.components.DepartureItemCard
 import com.example.ui.components.LineBadge
 import com.example.ui.components.RealtimePulseIndicator
@@ -105,6 +106,19 @@ fun StopDetailScreen(
     val departures = details?.departures?.filter { dep ->
         uiState.selectedLineFilter == null || dep.line == uiState.selectedLineFilter
     } ?: emptyList()
+
+    val sourceBadgeText = when (details?.dataSource) {
+        StopDataSource.LIVE_API -> "PEKA LIVE"
+        StopDataSource.ONLINE_NO_DEPARTURES -> "PEKA ONLINE"
+        StopDataSource.FALLBACK_GENERATED -> "ROZKŁAD GTFS"
+        null -> "ŁADOWANIE"
+    }
+    val sourceDescriptionText = when (details?.dataSource) {
+        StopDataSource.LIVE_API -> "ZTM Poznań API"
+        StopDataSource.ONLINE_NO_DEPARTURES -> "API online • Brak odjazdów teraz"
+        StopDataSource.FALLBACK_GENERATED -> "Rozkład statyczny"
+        null -> "Pobieranie danych"
+    }
 
     val timeFormatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
     val lastUpdatedTime = details?.lastUpdated?.let { timeFormatter.format(Date(it)) } ?: "Teraz"
@@ -203,9 +217,9 @@ fun StopDetailScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            RealtimePulseIndicator(text = if (details?.isOnlineData == true) "PEKA LIVE" else "ROZKŁAD GTFS")
+                            RealtimePulseIndicator(text = sourceBadgeText)
                             Text(
-                                text = if (details?.isOnlineData == true) "ZTM Poznań API" else "Rozkład statyczny",
+                                text = sourceDescriptionText,
                                 color = TextSecondary,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -378,7 +392,11 @@ fun StopDetailScreen(
                                 fontSize = 15.sp
                             )
                             Text(
-                                text = "W najbliższym czasie dla wybranego filtra nie znaleziono kursów.",
+                                text = if (details?.dataSource == StopDataSource.ONLINE_NO_DEPARTURES) {
+                                    "API online, ale w tej chwili brak aktywnych kursów dla tego przystanku."
+                                } else {
+                                    "W najbliższym czasie dla wybranego filtra nie znaleziono kursów."
+                                },
                                 color = TextSecondary,
                                 fontSize = 13.sp
                             )

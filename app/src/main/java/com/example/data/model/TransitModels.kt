@@ -63,10 +63,17 @@ enum class AlertSeverity {
     INFO, WARNING, CRITICAL
 }
 
+enum class StopDataSource {
+    LIVE_API,
+    ONLINE_NO_DEPARTURES,
+    FALLBACK_GENERATED
+}
+
 data class StopDetails(
     val stop: TransitStop,
     val departures: List<LiveDeparture>,
     val alerts: List<StopAlert> = emptyList(),
     val lastUpdated: Long = System.currentTimeMillis(),
-    val isOnlineData: Boolean = true
+    val isOnlineData: Boolean = true,
+    val dataSource: StopDataSource = StopDataSource.LIVE_API
 )

@@ -181,7 +181,7 @@ fun HomeScreen(
                 value = uiState.searchQuery,
                 onValueChange = { viewModel.setSearchQuery(it) },
                 placeholder = {
-                    Text("Szukaj przystanku (np. Kaponiera, 16)...", color = TextSecondary, fontSize = 14.sp)
+                    Text("Szukaj przystanku (np. Fredry)...", color = TextSecondary, fontSize = 14.sp)
                 },
                 leadingIcon = {
                     Icon(
