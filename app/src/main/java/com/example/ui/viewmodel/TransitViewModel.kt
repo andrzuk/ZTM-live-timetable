@@ -153,6 +153,15 @@ class TransitViewModel(application: Application) : AndroidViewModel(application)
         initialValue = emptyList()
     )
 
+    // Automatically detected single closest stop to current GPS position
+    val closestStop: StateFlow<TransitStop?> = nearbyStops.map { stops ->
+        stops.firstOrNull()
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
+
     init {
         // Automatically attempt to fetch GPS location on startup
         refreshUserLocation()
@@ -261,9 +270,28 @@ class TransitViewModel(application: Application) : AndroidViewModel(application)
         autoRefreshJob = null
     }
 
+    fun openClosestStop() {
+        val closest = closestStop.value ?: nearbyStops.value.firstOrNull()
+        if (closest != null) {
+            selectStop(closest)
+        }
+    }
+
     fun refreshUserLocation() {
-        _uiState.value = _uiState.value.copy(isLocating = true, locationMessage = null)
+        _uiState.value = _uiState.value.copy(isLocating = true)
         try {
+            // First check last cached location for instantaneous response
+            fusedLocationClient.lastLocation.addOnSuccessListener { cachedLocation ->
+                if (cachedLocation != null && (_uiState.value.userLat == null || _uiState.value.userLng == null)) {
+                    _uiState.value = _uiState.value.copy(
+                        userLat = cachedLocation.latitude,
+                        userLng = cachedLocation.longitude,
+                        locationMessage = "GPS: ${String.format("%.4f", cachedLocation.latitude)}, ${String.format("%.4f", cachedLocation.longitude)}"
+                    )
+                }
+            }
+
+            // High accuracy precise current location request
             val cancellationTokenSource = CancellationTokenSource()
             fusedLocationClient.getCurrentLocation(
                 Priority.PRIORITY_HIGH_ACCURACY,
@@ -274,9 +302,9 @@ class TransitViewModel(application: Application) : AndroidViewModel(application)
                         userLat = location.latitude,
                         userLng = location.longitude,
                         isLocating = false,
-                        locationMessage = "Lokalizacja zaktualizowana (${String.format("%.4f", location.latitude)}, ${String.format("%.4f", location.longitude)})"
+                        locationMessage = "GPS aktywny (${String.format("%.4f", location.latitude)}, ${String.format("%.4f", location.longitude)})"
                     )
-                } else {
+                } else if (_uiState.value.userLat == null) {
                     // Fallback to Poznan Center location (Rondo Kaponiera) for graceful simulator display
                     val fallbackLat = 52.4082
                     val fallbackLng = 16.9133
@@ -284,26 +312,35 @@ class TransitViewModel(application: Application) : AndroidViewModel(application)
                         userLat = fallbackLat,
                         userLng = fallbackLng,
                         isLocating = false,
-                        locationMessage = "Wykryto rejon: Poznań Centrum (Kaponiera)"
+                        locationMessage = "Wykryto: Poznań Centrum"
                     )
+                } else {
+                    _uiState.value = _uiState.value.copy(isLocating = false)
                 }
             }.addOnFailureListener {
-                // Fallback to Poznan Center
+                if (_uiState.value.userLat == null) {
+                    _uiState.value = _uiState.value.copy(
+                        userLat = 52.4082,
+                        userLng = 16.9133,
+                        isLocating = false,
+                        locationMessage = "Pozycja: Poznań Centrum"
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(isLocating = false)
+                }
+            }
+        } catch (e: SecurityException) {
+            // Permission not granted yet, set fallback default if not set
+            if (_uiState.value.userLat == null) {
                 _uiState.value = _uiState.value.copy(
                     userLat = 52.4082,
                     userLng = 16.9133,
                     isLocating = false,
-                    locationMessage = "Pozycja domyślna: Poznań Centrum"
+                    locationMessage = "Brak uprawnień GPS (Poznań Centrum)"
                 )
+            } else {
+                _uiState.value = _uiState.value.copy(isLocating = false)
             }
-        } catch (e: SecurityException) {
-            // Permission not granted yet, set fallback default
-            _uiState.value = _uiState.value.copy(
-                userLat = 52.4082,
-                userLng = 16.9133,
-                isLocating = false,
-                locationMessage = "Brak uprawnień GPS (Użyto centrum Poznania)"
-            )
         }
     }
 

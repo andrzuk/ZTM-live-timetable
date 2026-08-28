@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.components.ClosestStopHeroCard
 import com.example.ui.components.FilterChipsRow
 import com.example.ui.components.RealtimePulseIndicator
 import com.example.ui.components.StopCard
@@ -55,6 +56,7 @@ import com.example.ui.theme.RealtimeGreen
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.TextTertiary
+import com.example.ui.viewmodel.TransitFilterType
 import com.example.ui.viewmodel.TransitViewModel
 
 @Composable
@@ -64,6 +66,14 @@ fun NearbyStopsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val nearbyStops by viewModel.nearbyStops.collectAsState()
+    val closestStop by viewModel.closestStop.collectAsState()
+
+    val filteredNearby = when (uiState.activeFilter) {
+        TransitFilterType.ALL -> nearbyStops
+        TransitFilterType.TRAMS -> nearbyStops.filter { it.isTram }
+        TransitFilterType.BUSES -> nearbyStops.filter { it.isBus }
+        TransitFilterType.PST -> nearbyStops.filter { it.hasPst }
+    }
 
     LazyColumn(
         modifier = modifier
@@ -100,7 +110,7 @@ fun NearbyStopsScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Według odległości od Twojej pozycji",
+                            text = "Automatycznie wykrywane z GPS",
                             color = TextSecondary,
                             fontSize = 13.sp
                         )
@@ -173,6 +183,20 @@ fun NearbyStopsScreen(
             }
         }
 
+        // Closest stop hero card when available
+        if (closestStop != null && uiState.activeFilter == TransitFilterType.ALL) {
+            item {
+                Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    ClosestStopHeroCard(
+                        stop = closestStop,
+                        isLocating = uiState.isLocating,
+                        onStopClick = { viewModel.selectStop(it) },
+                        onRefreshGps = { viewModel.refreshUserLocation() }
+                    )
+                }
+            }
+        }
+
         // Filter chips
         item {
             FilterChipsRow(
@@ -182,7 +206,7 @@ fun NearbyStopsScreen(
         }
 
         // Stops list
-        if (nearbyStops.isEmpty()) {
+        if (filteredNearby.isEmpty()) {
             item {
                 Card(
                     modifier = Modifier
@@ -221,7 +245,25 @@ fun NearbyStopsScreen(
                 }
             }
         } else {
-            items(nearbyStops, key = { it.id }) { stop ->
+            val listToShow = if (closestStop != null && uiState.activeFilter == TransitFilterType.ALL) {
+                filteredNearby.drop(1)
+            } else {
+                filteredNearby
+            }
+
+            if (listToShow.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "Kolejne przystanki w okolicy (${listToShow.size})",
+                        color = TextPrimary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            items(listToShow, key = { it.id }) { stop ->
                 Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                     StopCard(
                         stop = stop,

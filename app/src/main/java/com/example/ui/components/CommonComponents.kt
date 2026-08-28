@@ -33,9 +33,12 @@ import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.DirectionsTransit
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Tram
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -648,6 +651,212 @@ fun ExternalServicesCard(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun ClosestStopHeroCard(
+    stop: TransitStop?,
+    isLocating: Boolean,
+    onStopClick: (TransitStop) -> Unit,
+    onRefreshGps: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (stop != null) Modifier.clickable { onStopClick(stop) } else Modifier
+            )
+            .testTag("closest_stop_hero_card"),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = M3Surface),
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, PolishPrimary.copy(alpha = 0.6f))
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Header bar
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(PolishPrimaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = PolishPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    Column {
+                        Text(
+                            text = "NAJBLIŻSZY PRZYSTANEK",
+                            color = PolishPrimary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.2.sp
+                        )
+                        Text(
+                            text = if (isLocating) "Wyszukiwanie GPS..." else "Wykryto automatycznie",
+                            color = TextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onRefreshGps,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .testTag("refresh_closest_gps_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Odśwież GPS",
+                        tint = PolishPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            if (stop != null) {
+                // Stop info
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = stop.name,
+                            color = TextPrimary,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (stop.code.isNotBlank()) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = M3SurfaceElevated,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, M3Border)
+                            ) {
+                                Text(
+                                    text = stop.code,
+                                    color = TextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Distance & Walk time
+                    if (stop.distanceMeters != null) {
+                        val distanceM = stop.distanceMeters.toInt()
+                        val walkMinutes = maxOf(1, (stop.distanceMeters / 80).toInt())
+                        val distanceFormatted = if (distanceM < 1000) "$distanceM m" else String.format("%.1f km", stop.distanceMeters / 1000f)
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = PolishPrimaryContainer
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DirectionsTransit,
+                                        contentDescription = null,
+                                        tint = PolishPrimary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = distanceFormatted,
+                                        color = PolishPrimary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            Text(
+                                text = "•  ok. $walkMinutes min pieszo",
+                                color = TextSecondary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
+                // Lines
+                if (stop.lines.isNotEmpty()) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        stop.lines.take(8).forEach { line ->
+                            LineBadge(line = line)
+                        }
+                        if (stop.lines.size > 8) {
+                            Text(
+                                text = "+${stop.lines.size - 8}",
+                                color = TextSecondary,
+                                fontSize = 12.sp,
+                                modifier = Modifier.align(Alignment.CenterVertically)
+                            )
+                        }
+                    }
+                }
+
+                // CTA Button
+                Button(
+                    onClick = { onStopClick(stop) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("check_closest_departures_btn"),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PolishPrimary,
+                        contentColor = PolishOnPrimaryContainer
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    Text(
+                        text = "Sprawdź odjazdy na żywo",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "→", fontWeight = FontWeight.Black, fontSize = 15.sp)
+                }
+            } else {
+                Text(
+                    text = if (isLocating) "Trwa ustalanie współrzędnych GPS i wyszukiwanie najbliższego przystanku..." else "Włącz GPS lub kliknij odśwież, aby automatycznie wykryć najbliższy przystanek.",
+                    color = TextSecondary,
+                    fontSize = 13.sp
+                )
             }
         }
     }

@@ -52,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.TransitStop
+import com.example.ui.components.ClosestStopHeroCard
 import com.example.ui.components.ExternalServicesCard
 import com.example.ui.components.FilterChipsRow
 import com.example.ui.components.LineBadge
@@ -87,6 +88,7 @@ fun HomeScreen(
     val favorites by viewModel.favoriteStops.collectAsState()
     val filteredStops by viewModel.filteredStopsState.collectAsState()
     val nearbyStops by viewModel.nearbyStops.collectAsState()
+    val closestStop by viewModel.closestStop.collectAsState()
 
     LazyColumn(
         modifier = modifier
@@ -256,6 +258,18 @@ fun HomeScreen(
             }
         } else {
             // Standard Home View
+
+            // Automatic Closest Stop GPS Hero Card
+            item {
+                Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    ClosestStopHeroCard(
+                        stop = closestStop,
+                        isLocating = uiState.isLocating,
+                        onStopClick = { viewModel.selectStop(it) },
+                        onRefreshGps = { viewModel.refreshUserLocation() }
+                    )
+                }
+            }
 
             // Favorites Section
             item {
