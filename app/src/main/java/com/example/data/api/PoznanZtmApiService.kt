@@ -92,13 +92,22 @@ class PoznanZtmApiClient {
                     }
 
                     val json = JSONObject(bodyString)
-                    val success = json.optBoolean("success", true)
-                    if (!success) {
+                    val successNode = json.opt("success")
+                    if (successNode is Boolean && !successNode) {
                         lastError = Exception("PEKA returned success=false")
                         return@use
                     }
 
-                    val resultObj = json.optJSONObject("result")
+                    // PEKA can return either: {"success":true, "result":{...}} or {"success":{...}}
+                    val resultObj = when (successNode) {
+                        is JSONObject -> successNode
+                        else -> json.optJSONObject("result")
+                    }
+                    if (resultObj == null) {
+                        lastError = Exception("PEKA response has no result payload")
+                        return@use
+                    }
+
                     val timesArray = resultObj?.optJSONArray("times")
                     val bollardObj = resultObj?.optJSONObject("bollard")
                     val bollardName = bollardObj?.optString("name")
@@ -233,39 +242,104 @@ class PoznanZtmApiClient {
                 val departures = mutableListOf<LiveDeparture>()
                 if (bodyString.isNotBlank() && bodyString.trimStart().startsWith("{")) {
                     val json = JSONObject(bodyString)
-                    val features = json.optJSONArray("features")
-                    if (features != null) {
-                        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-                        for (i in 0 until features.length()) {
-                            val feature = features.optJSONObject(i) ?: continue
-                            val props = feature.optJSONObject("properties") ?: continue
-                            val line = props.optString("line", "").trim()
-                            val direction = props.optString("direction", props.optString("headsign", "Kierunek")).trim()
-                            val minutes = props.optInt("minutes", props.optInt("time", i * 3))
-                            val isRealtime = props.optBoolean("realtime", props.optBoolean("real_time", true))
+                    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+                    val now = Calendar.getInstance()
+                    val routes = json.optJSONArray("routes")
 
-                            if (line.isNotBlank()) {
-                                val cal = Calendar.getInstance().apply {
-                                    add(Calendar.MINUTE, minutes)
+                    if (routes != null) {
+                        // Newer endpoint format: { date, time, stop, routes[] }
+                        for (routeIndex in 0 until routes.length()) {
+                            val routeObj = routes.optJSONObject(routeIndex) ?: continue
+                            val line = routeObj.optString("name", "").trim()
+                            if (line.isBlank()) continue
+
+                            val variants = routeObj.optJSONArray("variants") ?: continue
+                            for (variantIndex in 0 until variants.length()) {
+                                val variantObj = variants.optJSONObject(variantIndex) ?: continue
+                                val direction = variantObj.optString("headsign", "Kierunek").trim().ifBlank { "Kierunek" }
+                                val services = variantObj.optJSONArray("services") ?: continue
+
+                                for (serviceIndex in 0 until services.length()) {
+                                    val serviceObj = services.optJSONObject(serviceIndex) ?: continue
+                                    val depArray = serviceObj.optJSONArray("departures") ?: continue
+
+                                    for (departureIndex in 0 until depArray.length()) {
+                                        val depObj = depArray.optJSONObject(departureIndex) ?: continue
+                                        val hour = depObj.optString("hours").toIntOrNull() ?: depObj.optInt("hours", -1)
+                                        val minute = depObj.optString("minutes").toIntOrNull() ?: depObj.optInt("minutes", -1)
+                                        if (hour !in 0..23 || minute !in 0..59) continue
+
+                                        val minutesLeft = calculateMinutesUntil(hour, minute, now)
+                                        // Keep this fallback focused on upcoming departures.
+                                        if (minutesLeft !in 0..180) continue
+
+                                        val departureCal = (now.clone() as Calendar).apply {
+                                            set(Calendar.HOUR_OF_DAY, hour)
+                                            set(Calendar.MINUTE, minute)
+                                            set(Calendar.SECOND, 0)
+                                            set(Calendar.MILLISECOND, 0)
+                                            if (before(now)) {
+                                                add(Calendar.DAY_OF_YEAR, 1)
+                                            }
+                                        }
+
+                                        val vehicleType = getVehicleTypeForLine(line)
+                                        departures.add(
+                                            LiveDeparture(
+                                                id = "opendata_${stopSymbol}_${line}_${routeIndex}_${variantIndex}_${serviceIndex}_${departureIndex}",
+                                                line = line,
+                                                direction = direction,
+                                                departureTime = timeFormat.format(departureCal.time),
+                                                minutesLeft = minutesLeft,
+                                                isRealtime = false,
+                                                delayMinutes = 0,
+                                                platform = if (hasPst) "Peron PST" else if (stopCode.isNotBlank()) "Słupek $stopCode" else "Przystanek",
+                                                vehicleType = vehicleType,
+                                                isLowFloor = true,
+                                                hasAirConditioning = true,
+                                                vehicleModel = if (vehicleType == VehicleType.TRAM) "Tramwaj MPK" else "Autobus MPK",
+                                                stopsRemaining = maxOf(1, minutesLeft / 2)
+                                            )
+                                        )
+                                    }
                                 }
-                                val vehicleType = getVehicleTypeForLine(line)
-                                departures.add(
-                                    LiveDeparture(
-                                        id = "opendata_${stopSymbol}_${line}_$i",
-                                        line = line,
-                                        direction = direction,
-                                        departureTime = timeFormat.format(cal.time),
-                                        minutesLeft = maxOf(0, minutes),
-                                        isRealtime = isRealtime,
-                                        delayMinutes = 0,
-                                        platform = if (hasPst) "Peron PST" else "Słupek $stopCode",
-                                        vehicleType = vehicleType,
-                                        isLowFloor = true,
-                                        hasAirConditioning = true,
-                                        vehicleModel = if (vehicleType == VehicleType.TRAM) "Tramwaj MPK" else "Autobus MPK",
-                                        stopsRemaining = maxOf(1, minutes / 2)
+                            }
+                        }
+                    } else {
+                        // Legacy/alternate format: { features[] }
+                        val features = json.optJSONArray("features")
+                        if (features != null) {
+                            for (i in 0 until features.length()) {
+                                val feature = features.optJSONObject(i) ?: continue
+                                val props = feature.optJSONObject("properties") ?: continue
+                                val line = props.optString("line", "").trim()
+                                val direction = props.optString("direction", props.optString("headsign", "Kierunek")).trim()
+                                val minutes = props.optInt("minutes", props.optInt("time", i * 3))
+                                val isRealtime = props.optBoolean("realtime", props.optBoolean("real_time", true))
+
+                                if (line.isNotBlank()) {
+                                    val cal = Calendar.getInstance().apply {
+                                        add(Calendar.MINUTE, minutes)
+                                    }
+                                    val vehicleType = getVehicleTypeForLine(line)
+                                    departures.add(
+                                        LiveDeparture(
+                                            id = "opendata_${stopSymbol}_${line}_$i",
+                                            line = line,
+                                            direction = direction,
+                                            departureTime = timeFormat.format(cal.time),
+                                            minutesLeft = maxOf(0, minutes),
+                                            isRealtime = isRealtime,
+                                            delayMinutes = 0,
+                                            platform = if (hasPst) "Peron PST" else if (stopCode.isNotBlank()) "Słupek $stopCode" else "Przystanek",
+                                            vehicleType = vehicleType,
+                                            isLowFloor = true,
+                                            hasAirConditioning = true,
+                                            vehicleModel = if (vehicleType == VehicleType.TRAM) "Tramwaj MPK" else "Autobus MPK",
+                                            stopsRemaining = maxOf(1, minutes / 2)
+                                        )
                                     )
-                                )
+                                }
                             }
                         }
                     }
@@ -290,5 +364,18 @@ class PoznanZtmApiClient {
             num in 300..999 -> VehicleType.SUBURBAN
             else -> VehicleType.BUS
         }
+    }
+
+    private fun calculateMinutesUntil(hour: Int, minute: Int, now: Calendar): Int {
+        val departureCal = (now.clone() as Calendar).apply {
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, minute)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+            if (before(now)) {
+                add(Calendar.DAY_OF_YEAR, 1)
+            }
+        }
+        return ((departureCal.timeInMillis - now.timeInMillis) / 60000L).toInt().coerceAtLeast(0)
     }
 }
