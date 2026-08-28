@@ -219,7 +219,7 @@ class PoznanZtmApiClient {
         hasPst: Boolean
     ): Result<ApiLiveDeparturesResponse> {
         return try {
-            val url = "https://www.poznan.pl/mim/plan/map_service.html?mtype=pub_transport&co=stoptrip&stop_id=$stopSymbol"
+            val url = "https://www.poznan.pl/mim/komunikacja/service.html?stop_id=$stopSymbol"
             val request = Request.Builder()
                 .url(url)
                 .header("User-Agent", "PoznanTransitLive/1.0 (Android; OpenData)")
