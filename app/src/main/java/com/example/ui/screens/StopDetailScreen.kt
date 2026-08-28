@@ -104,7 +104,7 @@ fun StopDetailScreen(
     }
 
     val departures = details?.departures?.filter { dep ->
-        uiState.selectedLineFilter == null || dep.line == uiState.selectedLineFilter
+        uiState.selectedLineFilter.isNullOrBlank() || dep.line == uiState.selectedLineFilter
     } ?: emptyList()
 
     val sourceBadgeText = when (details?.dataSource) {
@@ -253,18 +253,18 @@ fun StopDetailScreen(
                     ) {
                         Surface(
                             modifier = Modifier
-                                .clickable { viewModel.toggleLineFilter("") }
+                                .clickable { viewModel.toggleLineFilter(null) }
                                 .testTag("line_filter_all"),
                             shape = RoundedCornerShape(12.dp),
-                            color = if (uiState.selectedLineFilter == null) PolishPrimaryContainer else M3Surface,
+                            color = if (uiState.selectedLineFilter.isNullOrBlank()) PolishPrimaryContainer else M3Surface,
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                if (uiState.selectedLineFilter == null) PolishPrimary else M3Border
+                                if (uiState.selectedLineFilter.isNullOrBlank()) PolishPrimary else M3Border
                             )
                         ) {
                             Text(
                                 text = "Wszystkie (${stop.lines.size})",
-                                color = if (uiState.selectedLineFilter == null) PolishPrimary else TextSecondary,
+                                color = if (uiState.selectedLineFilter.isNullOrBlank()) PolishPrimary else TextSecondary,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)

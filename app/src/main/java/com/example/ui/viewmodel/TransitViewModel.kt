@@ -186,10 +186,10 @@ class TransitViewModel(application: Application) : AndroidViewModel(application)
         startAutoRefresh(stop)
     }
 
-    fun toggleLineFilter(line: String) {
+    fun toggleLineFilter(line: String?) {
         val current = _uiState.value.selectedLineFilter
         _uiState.value = _uiState.value.copy(
-            selectedLineFilter = if (current == line) null else line
+            selectedLineFilter = if (line.isNullOrBlank() || current == line) null else line
         )
     }
 
