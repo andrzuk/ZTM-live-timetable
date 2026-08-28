@@ -840,18 +840,24 @@ fun ClosestStopHeroCard(
                         .testTag("check_closest_departures_btn"),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = PolishPrimary,
-                        contentColor = PolishOnPrimaryContainer
+                        contentColor = Color(0xFF1D192B)
                     ),
                     shape = RoundedCornerShape(14.dp),
                     contentPadding = PaddingValues(vertical = 12.dp)
                 ) {
                     Text(
                         text = "Sprawdź odjazdy na żywo",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        color = Color(0xFF1D192B),
+                        fontWeight = FontWeight.Black,
+                        fontSize = 15.sp
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "→", fontWeight = FontWeight.Black, fontSize = 15.sp)
+                    Text(
+                        text = "→",
+                        color = Color(0xFF1D192B),
+                        fontWeight = FontWeight.Black,
+                        fontSize = 16.sp
+                    )
                 }
             } else {
                 Text(

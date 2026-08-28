@@ -192,7 +192,7 @@ fun MainTransitApp(
                         },
                         label = {
                             Text(
-                                text = "GPS W pobliżu",
+                                text = "Lokalizacja",
                                 fontSize = 11.sp,
                                 fontWeight = if (uiState.currentScreen == AppScreen.NEARBY) FontWeight.Bold else FontWeight.Medium
                             )

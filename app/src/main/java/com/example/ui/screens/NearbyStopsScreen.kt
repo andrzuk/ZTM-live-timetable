@@ -245,11 +245,11 @@ fun NearbyStopsScreen(
                 }
             }
         } else {
-            val listToShow = if (closestStop != null && uiState.activeFilter == TransitFilterType.ALL) {
+            val listToShow = (if (closestStop != null && uiState.activeFilter == TransitFilterType.ALL) {
                 filteredNearby.drop(1)
             } else {
                 filteredNearby
-            }
+            }).take(3)
 
             if (listToShow.isNotEmpty()) {
                 item {
