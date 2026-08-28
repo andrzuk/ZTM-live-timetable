@@ -84,6 +84,65 @@ class PoznanTransitRepository(
     }
 
     suspend fun getLiveDepartures(stop: TransitStop): StopDetails = withContext(Dispatchers.IO) {
+        // 1. Fetch real-time live departures from Poznań ZTM / PEKA Virtual Monitor API
+        val apiResult = apiClient.fetchLiveDeparturesForStop(
+            stopSymbol = stop.symbol,
+            stopName = stop.name,
+            stopCode = stop.code,
+            hasPst = stop.hasPst
+        )
+
+        val liveResponse = apiResult.getOrNull()
+        if (apiResult.isSuccess && liveResponse != null && liveResponse.departures.isNotEmpty()) {
+            val alerts = mutableListOf<StopAlert>()
+            alerts.addAll(liveResponse.alerts)
+            if (stop.hasPst && alerts.none { it.id == "alert_pst" }) {
+                alerts.add(
+                    StopAlert(
+                        id = "alert_pst",
+                        title = "Trasa PST w pełnym ruchu",
+                        message = "Linie 12, 14, 15, 16 kursują ze stałą częstotliwością w godzinach szczytu.",
+                        severity = AlertSeverity.INFO,
+                        affectedLines = listOf("12", "14", "15", "16")
+                    )
+                )
+            }
+
+            return@withContext StopDetails(
+                stop = stop,
+                departures = liveResponse.departures,
+                alerts = alerts,
+                lastUpdated = System.currentTimeMillis(),
+                isOnlineData = true
+            )
+        }
+
+        // 2. Fallback to timetable data when API is unreachable or returns no live departures
+        val fallbackDepartures = generateFallbackDepartures(stop)
+        val alerts = mutableListOf<StopAlert>()
+        alerts.addAll(liveResponse?.alerts ?: emptyList())
+        if (stop.hasPst && alerts.none { it.id == "alert_pst" }) {
+            alerts.add(
+                StopAlert(
+                    id = "alert_pst",
+                    title = "Trasa PST w pełnym ruchu",
+                    message = "Linie 12, 14, 15, 16 kursują ze zwiększoną częstotliwością w godzinach szczytu.",
+                    severity = AlertSeverity.INFO,
+                    affectedLines = listOf("12", "14", "15", "16")
+                )
+            )
+        }
+
+        StopDetails(
+            stop = stop,
+            departures = fallbackDepartures,
+            alerts = alerts,
+            lastUpdated = System.currentTimeMillis(),
+            isOnlineData = false
+        )
+    }
+
+    private fun generateFallbackDepartures(stop: TransitStop): List<LiveDeparture> {
         val now = Calendar.getInstance()
         val currentHour = now.get(Calendar.HOUR_OF_DAY)
         val currentMinute = now.get(Calendar.MINUTE)
@@ -93,7 +152,7 @@ class PoznanTransitRepository(
         val randomSeed = (stop.id.hashCode() + currentHour * 60 + currentMinute).toLong()
         val rnd = Random(randomSeed)
 
-        // Generate dynamic live departures for all lines serving this stop
+        // Generate dynamic departures for all lines serving this stop
         stop.lines.forEachIndexed { index, lineStr ->
             val lineInfo = getLineMetadata(lineStr, stop.name)
             val vehicleType = getVehicleTypeForLine(lineStr)
@@ -148,29 +207,7 @@ class PoznanTransitRepository(
             }
         }
 
-        // Sort by minutes left ascending
-        val sortedDepartures = departures.sortedBy { it.minutesLeft }
-
-        val alerts = mutableListOf<StopAlert>()
-        if (stop.hasPst) {
-            alerts.add(
-                StopAlert(
-                    id = "alert_pst",
-                    title = "Trasa PST w pełnym ruchu",
-                    message = "Linie 12, 14, 15, 16 kursują ze zwiększoną częstotliwością w godzinach szczytu.",
-                    severity = AlertSeverity.INFO,
-                    affectedLines = listOf("12", "14", "15", "16")
-                )
-            )
-        }
-
-        StopDetails(
-            stop = stop,
-            departures = sortedDepartures,
-            alerts = alerts,
-            lastUpdated = System.currentTimeMillis(),
-            isOnlineData = true
-        )
+        return departures.sortedBy { it.minutesLeft }
     }
 
     private fun getVehicleTypeForLine(line: String): VehicleType {

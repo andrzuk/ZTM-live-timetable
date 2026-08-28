@@ -203,9 +203,9 @@ fun StopDetailScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            RealtimePulseIndicator(text = "TABLICA NA ŻYWO")
+                            RealtimePulseIndicator(text = if (details?.isOnlineData == true) "PEKA LIVE" else "ROZKŁAD GTFS")
                             Text(
-                                text = "ZTM / GTFS-RT",
+                                text = if (details?.isOnlineData == true) "ZTM Poznań API" else "Rozkład statyczny",
                                 color = TextSecondary,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold
