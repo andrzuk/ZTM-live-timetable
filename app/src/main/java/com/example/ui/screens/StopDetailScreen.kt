@@ -110,14 +110,14 @@ fun StopDetailScreen(
     val sourceBadgeText = when (details?.dataSource) {
         StopDataSource.LIVE_API -> "PEKA LIVE"
         StopDataSource.ONLINE_NO_DEPARTURES -> "PEKA ONLINE"
-        StopDataSource.FALLBACK_GENERATED -> "ROZKŁAD GTFS"
-        null -> "ŁADOWANIE"
+        StopDataSource.FALLBACK_GENERATED -> "GTFS"
+        null -> "Ładowanie..."
     }
     val sourceDescriptionText = when (details?.dataSource) {
         StopDataSource.LIVE_API -> "ZTM Poznań API"
-        StopDataSource.ONLINE_NO_DEPARTURES -> "API online • Brak odjazdów teraz"
-        StopDataSource.FALLBACK_GENERATED -> "Rozkład statyczny"
-        null -> "Pobieranie danych"
+        StopDataSource.ONLINE_NO_DEPARTURES -> "API ONLINE"
+        StopDataSource.FALLBACK_GENERATED -> "STATYCZNY"
+        null -> "Pobieranie..."
     }
 
     val timeFormatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
