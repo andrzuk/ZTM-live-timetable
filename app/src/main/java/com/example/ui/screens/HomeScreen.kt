@@ -7,6 +7,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -77,7 +79,7 @@ import com.example.ui.viewmodel.AppScreen
 import com.example.ui.viewmodel.TransitFilterType
 import com.example.ui.viewmodel.TransitViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(
     viewModel: TransitViewModel,
@@ -395,8 +397,10 @@ fun HomeScreen(
                                             }
                                         }
 
-                                        Row(
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        FlowRow(
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                                            modifier = Modifier.fillMaxWidth()
                                         ) {
                                             favStop.lines.take(4).forEach { line ->
                                                 LineBadge(line = line)

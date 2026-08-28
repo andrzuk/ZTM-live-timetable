@@ -186,7 +186,9 @@ fun LineBadge(
             fontWeight = FontWeight.Black,
             fontSize = 14.sp,
             fontFamily = FontFamily.Monospace,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
         )
     }
 }
